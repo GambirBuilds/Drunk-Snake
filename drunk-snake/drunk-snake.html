@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Drunk Snake 🐍🍺</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a12;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      margin-bottom: 0.3rem;
+      text-shadow: 0 0 12px #ff6b9d, 0 0 24px #7b5cff;
+      letter-spacing: 2px;
+    }
+
+    .subtitle {
+      font-size: 0.95rem;
+      opacity: 0.7;
+      margin-bottom: 1.2rem;
+    }
+
+    #game-container {
+      position: relative;
+      border: 3px solid #5a4fcf;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(123, 92, 255, 0.4),
+                  inset 0 0 40px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      background: #12121f;
+    }
+
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.95rem;
+      pointer-events: none;
+      text-shadow: 0 1px 3px #000;
+    }
+
+    #drunk-meter {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      height: 10px;
+      background: #222;
+      border-radius: 5px;
+      overflow: hidden;
+      border: 1px solid #444;
+    }
+
+    #drunk-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4ade80, #facc15, #f97316, #ef4444);
+      transition: width 0.15s ease;
+      border-radius: 4px;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(8, 8, 16, 0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      z-index: 10;
+    }
+
+    #overlay h2 {
+      font-size: 2rem;
+      margin-bottom: 0.6rem;
+      text-shadow: 0 0 15px #ff6b9d;
+    }
+
+    #overlay p {
+      margin: 0.4rem 0;
+      max-width: 320px;
+      line-height: 1.4;
+      opacity: 0.9;
+    }
+
+    #start-btn, #restart-btn {
+      margin-top: 1.4rem;
+      padding: 12px 32px;
+      font-size: 1.15rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #7b5cff, #ff6b9d);
+      color: white;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(123, 92, 255, 0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    #start-btn:hover, #restart-btn:hover {
+      transform: scale(1.06);
+      box-shadow: 0 6px 28px rgba(123, 92, 255, 0.7);
+    }
+
+    .controls-hint {
+      margin-top: 1.5rem;
+      font-size: 0.85rem;
+      opacity: 0.6;
+    }
+
+    #score-display {
+      font-size: 1.3rem;
+      margin-top: 0.8rem;
+    }
+
+    /* Mobile buttons */
+    #mobile-controls {
+      display: none;
+      margin-top: 1.2rem;
+      gap: 8px;
+    }
+
+    .dpad {
+      display: grid;
+      grid-template-columns: 60px 60px 60px;
+      grid-template-rows: 50px 50px 50px;
+      gap: 4px;
+    }
+
+    .dpad button {
+      background: #2a2a40;
+      border: 2px solid #5a4fcf;
+      border-radius: 10px;
+      color: white;
+      font-size: 1.4rem;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .dpad button:active {
+      background: #5a4fcf;
+    }
+
+    .up    { grid-column: 2; grid-row: 1; }
+    .left  { grid-column: 1; grid-row: 2; }
+    .down  { grid-column: 2; grid-row: 3; }
+    .right { grid-column: 3; grid-row: 2; }
+
+    @media (max-width: 600px) {
+      #mobile-controls { display: flex; justify-content: center; }
+      h1 { font-size: 1.7rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Drunk Snake 🐍🍺</h1>
+  <p class="subtitle">The longer you last… the drunker it gets</p>
+
+  <div id="game-container">
+    <canvas id="canvas" width="480" height="480"></canvas>
+
+    <div id="ui">
+      <span id="score">Score: 0</span>
+      <span id="time">Time: 0s</span>
+    </div>
+
+    <div id="drunk-meter">
+      <div id="drunk-fill"></div>
+    </div>
+
+    <div id="overlay">
+      <h2>Drunk Snake</h2>
+      <p>Controls get delayed and wobbly the longer you survive.<br>
+         Pure chaos awaits.</p>
+      <p class="controls-hint">Arrow keys or WASD to move</p>
+      <button id="start-btn">Start Drinking</button>
+    </div>
+  </div>
+
+  <div id="mobile-controls">
+    <div class="dpad">
+      <button class="up">▲</button>
+      <button class="left">◀</button>
+      <button class="down">▼</button>
+      <button class="right">▶</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('start-btn');
+    const scoreEl = document.getElementById('score');
+    const timeEl = document.getElementById('time');
+    const drunkFill = document.getElementById('drunk-fill');
+
+    // Game settings
+    const GRID = 20;               // cell size
+    const COLS = canvas.width / GRID;
+    const ROWS = canvas.height / GRID;
+
+    // State
+    let snake, dir, nextDir, food, score, startTime, gameOver;
+    let drunkLevel = 0;            // 0 → 1
+    let inputQueue = [];           // delayed inputs
+    let lastMoveTime = 0;
+    let baseSpeed = 130;           // ms between moves
+    let running = false;
+    let animId = null;
+    let shakeX = 0, shakeY = 0;
+    let hueShift = 0;
+
+    // Direction vectors
+    const DIRS = {
+      up:    { x: 0, y: -1 },
+      down:  { x: 0, y:  1 },
+      left:  { x:-1, y:  0 },
+      right: { x: 1, y:  0 }
+    };
+    const OPPOSITE = { up:'down', down:'up', left:'right', right:'left' };
+
+    function reset() {
+      snake = [
+        { x: 10, y: 12 },
+        { x: 9,  y: 12 },
+        { x: 8,  y: 12 }
+      ];
+      dir = 'right';
+      nextDir = 'right';
+      score = 0;
+      startTime = performance.now();
+      gameOver = false;
+      drunkLevel = 0;
+      inputQueue = [];
+      lastMoveTime = 0;
+      placeFood();
+      updateUI();
+    }
+
+    function placeFood() {
+      let valid = false;
+      while (!valid) {
+        food = {
+          x: Math.floor(Math.random() * COLS),
+          y: Math.floor(Math.random() * ROWS)
+        };
+        valid = !snake.some(s => s.x === food.x && s.y === food.y);
+      }
+    }
+
+    function updateUI() {
+      scoreEl.textContent = `Score: ${score}`;
+      const secs = Math.floor((performance.now() - startTime) / 1000);
+      timeEl.textContent = `Time: ${secs}s`;
+      drunkFill.style.width = `${Math.min(100, drunkLevel * 100)}%`;
+    }
+
+    // ===== Input handling with delay + wobble =====
+    function queueInput(newDir) {
+      if (!running || gameOver) return;
+      // Don't allow 180° turns relative to current intended direction
+      if (OPPOSITE[nextDir] === newDir) return;
+      inputQueue.push({ dir: newDir, time: performance.now() });
+    }
+
+    // Keyboard
+    window.addEventListener('keydown', e => {
+      const map = {
+        ArrowUp: 'up',    w: 'up',    W: 'up',
+        ArrowDown: 'down', s: 'down', S: 'down',
+        ArrowLeft: 'left', a: 'left', A: 'left',
+        ArrowRight: 'right', d: 'right', D: 'right'
+      };
+      if (map[e.key]) {
+        e.preventDefault();
+        queueInput(map[e.key]);
+      }
+      if (e.key === ' ' && gameOver) restart();
+    });
+
+    // Mobile buttons
+    document.querySelector('.up').addEventListener('click', () => queueInput('up'));
+    document.querySelector('.down').addEventListener('click', () => queueInput('down'));
+    document.querySelector('.left').addEventListener('click', () => queueInput('left'));
+    document.querySelector('.right').addEventListener('click', () => queueInput('right'));
+
+    function processDelayedInputs(now) {
+      // Delay increases with drunk level (0 → ~450ms)
+      const delay = 40 + drunkLevel * 420;
+
+      while (inputQueue.length && now - inputQueue[0].time >= delay) {
+        const input = inputQueue.shift();
+        if (OPPOSITE[dir] !== input.dir) {
+          nextDir = input.dir;
+        }
+      }
+
+      // Occasional wobble: randomly force a slight direction change when very drunk
+      if (drunkLevel > 0.35 && Math.random() < 0.018 * drunkLevel) {
+        const possibles = Object.keys(DIRS).filter(d => d !== OPPOSITE[dir] && d !== dir);
+        if (possibles.length && Math.random() < 0.6) {
+          nextDir = possibles[Math.floor(Math.random() * possibles.length)];
+        }
+      }
+    }
+
+    function moveSnake() {
+      dir = nextDir;
+      const head = { ...snake[0] };
+      head.x += DIRS[dir].x;
+      head.y += DIRS[dir].y;
+
+      // Wall collision
+      if (head.x < 0 || head.x >= COLS || head.y < 0 || head.y >= ROWS) {
+        endGame();
+        return;
+      }
+
+      // Self collision
+      if (snake.some(s => s.x === head.x && s.y === head.y)) {
+        endGame();
+        return;
+      }
+
+      snake.unshift(head);
+
+      // Eat food?
+      if (head.x === food.x && head.y === food.y) {
+        score += 10 + Math.floor(drunkLevel * 20); // drunk bonus
+        placeFood();
+      } else {
+        snake.pop();
+      }
+    }
+
+    function endGame() {
+      gameOver = true;
+      running = false;
+      cancelAnimationFrame(animId);
+
+      const secs = Math.floor((performance.now() - startTime) / 1000);
+      overlay.innerHTML = `
+        <h2>You Passed Out 😵</h2>
+        <p id="score-display">Score: <strong>${score}</strong></p>
+        <p>Survived ${secs} seconds of pure chaos</p>
+        <p style="opacity:0.7;margin-top:0.8rem">Drunk level reached: ${Math.round(drunkLevel * 100)}%</p>
+        <button id="restart-btn">Drink Again</button>
+      `;
+      overlay.style.display = 'flex';
+      document.getElementById('restart-btn').addEventListener('click', restart);
+    }
+
+    function restart() {
+      reset();
+      overlay.style.display = 'none';
+      running = true;
+      lastMoveTime = performance.now();
+      loop(performance.now());
+    }
+
+    // ===== Rendering =====
+    function draw(now) {
+      // Increasing visual chaos
+      hueShift = (now / 30) % 360;
+      const shakeAmount = drunkLevel * 6;
+      shakeX = (Math.random() - 0.5) * shakeAmount;
+      shakeY = (Math.random() - 0.5) * shakeAmount;
+
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+
+      // Background with subtle color pulse when drunk
+      const bgHue = 240 + drunkLevel * 40;
+      ctx.fillStyle = `hsl(${bgHue}, 30%, ${8 + drunkLevel * 4}%)`;
+      ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
+
+      // Grid (fades as you get drunker)
+      ctx.strokeStyle = `rgba(80, 70, 160, ${0.25 - drunkLevel * 0.18})`;
+      ctx.lineWidth = 1;
+      for (let x = 0; x <= COLS; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * GRID, 0);
+        ctx.lineTo(x * GRID, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= ROWS; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * GRID);
+        ctx.lineTo(canvas.width, y * GRID);
+        ctx.stroke();
+      }
+
+      // Food – bouncy & colorful when drunk
+      const foodPulse = 0.7 + 0.3 * Math.sin(now / 120);
+      const foodSize = GRID * foodPulse * (0.7 + drunkLevel * 0.15);
+      const fx = food.x * GRID + GRID / 2;
+      const fy = food.y * GRID + GRID / 2;
+
+      ctx.beginPath();
+      ctx.arc(fx, fy, foodSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = `hsl(${(now / 8) % 360}, 90%, 60%)`;
+      ctx.shadowColor = ctx.fillStyle;
+      ctx.shadowBlur = 12 + drunkLevel * 20;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Snake body
+      snake.forEach((seg, i) => {
+        const t = i / snake.length;
+        const wobble = drunkLevel * 4 * Math.sin(now / 90 + i * 0.7);
+        const x = seg.x * GRID + wobble;
+        const y = seg.y * GRID + Math.cos(now / 110 + i * 0.5) * drunkLevel * 3;
+
+        // Color shifts more when drunk
+        const hue = (200 + t * 80 + drunkLevel * 120 + now / 40) % 360;
+        const sat = 70 + drunkLevel * 25;
+        const light = 55 - t * 25;
+
+        ctx.fillStyle = `hsl(${hue}, ${sat}%, ${light}%)`;
+        ctx.shadowColor = `hsl(${hue}, 90%, 60%)`;
+        ctx.shadowBlur = drunkLevel * 8;
+
+        const size = GRID - 2 - (drunkLevel * 1.5 * (i > 0 ? 1 : 0));
+        const radius = 4 + drunkLevel * 3;
+
+        roundRect(ctx, x + 1, y + 1, size, size, radius);
+        ctx.fill();
+      });
+
+      // Head eyes
+      if (snake.length) {
+        const head = snake[0];
+        const hx = head.x * GRID + GRID / 2;
+        const hy = head.y * GRID + GRID / 2;
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 0;
+        const eyeOffset = 4;
+        const eyeSize = 3 + drunkLevel * 1.5;
+
+        // Eyes look in direction of movement (slightly cross-eyed when drunk)
+        let ex1 = hx, ey1 = hy, ex2 = hx, ey2 = hy;
+        if (dir === 'right') { ex1 += eyeOffset; ex2 += eyeOffset; ey1 -= 4; ey2 += 4; }
+        if (dir === 'left')  { ex1 -= eyeOffset; ex2 -= eyeOffset; ey1 -= 4; ey2 += 4; }
+        if (dir === 'up')    { ey1 -= eyeOffset; ey2 -= eyeOffset; ex1 -= 4; ex2 += 4; }
+        if (dir === 'down')  { ey1 += eyeOffset; ey2 += eyeOffset; ex1 -= 4; ex2 += 4; }
+
+        // Cross-eyed when drunk
+        if (drunkLevel > 0.4) {
+          ex1 += (Math.random() - 0.5) * 3;
+          ey1 += (Math.random() - 0.5) * 3;
+          ex2 += (Math.random() - 0.5) * 3;
+          ey2 += (Math.random() - 0.5) * 3;
+        }
+
+        ctx.beginPath();
+        ctx.arc(ex1, ey1, eyeSize, 0, Math.PI * 2);
+        ctx.arc(ex2, ey2, eyeSize, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupils
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(ex1, ey1, eyeSize * 0.45, 0, Math.PI * 2);
+        ctx.arc(ex2, ey2, eyeSize * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+
+      // Screen-wide color overlay when very drunk
+      if (drunkLevel > 0.5) {
+        ctx.fillStyle = `hsla(${hueShift}, 70%, 50%, ${0.04 + (drunkLevel - 0.5) * 0.12})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    // ===== Main loop =====
+    function loop(now) {
+      if (!running) return;
+
+      // Drunk level rises with time (caps at 1 after ~90s)
+      const elapsed = (now - startTime) / 1000;
+      drunkLevel = Math.min(1, elapsed / 90);
+
+      // Speed also increases a bit (but input delay hurts more)
+      const speed = baseSpeed - drunkLevel * 35;
+
+      processDelayedInputs(now);
+
+      if (now - lastMoveTime >= speed) {
+        moveSnake();
+        lastMoveTime = now;
+      }
+
+      draw(now);
+      updateUI();
+
+      animId = requestAnimationFrame(loop);
+    }
+
+    // Start button
+    startBtn.addEventListener('click', () => {
+      reset();
+      overlay.style.display = 'none';
+      running = true;
+      lastMoveTime = performance.now();
+      loop(performance.now());
+    });
+
+    // Initial draw of empty board
+    ctx.fillStyle = '#12121f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  </script>
+</body>
+</html>
